@@ -2,6 +2,35 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+function buildPrompt(brandName) {
+  var sq = brandName + ' reviews complaints reputation trustpilot reddit';
+  var p = 'Search the web for: "' + sq + '"\n\n';
+  p += 'After searching, analyze what you found using the AGE framework and return ONLY valid JSON.\n\n';
+  p += 'AGE Framework:\n';
+  p += '- A (Alleviate): Does the brand acknowledge issues in responses?\n';
+  p += '- G (Ground): Does the brand provide evidence or specifics?\n';
+  p += '- E (Engage): Does the brand offer clear next steps?\n\n';
+  p += 'Return this exact JSON structure (no markdown, no explanation, no preamble):\n\n';
+  p += '{\n';
+  p += '  "brand": "' + brandName + '",\n';
+  p += '  "synthesis_preview": "2-3 sentence summary of what AI will say when someone asks Is ' + brandName + ' reliable? Write as if you are the AI answering that question.",\n';
+  p += '  "verdict": "trustworthy or mixed or questionable or concerning",\n';
+  p += '  "collapse_risk": "integer 0-100",\n';
+  p += '  "age_quality": "integer 0-100",\n';
+  p += '  "critical_mention_count": "integer",\n';
+  p += '  "pattern_count": "integer",\n';
+  p += '  "search_queries_used": ["' + sq + '"],\n';
+  p += '  "critical_mentions": [{ "source": "Platform", "url": "URL or empty", "excerpt": "Quote from results", "risk_score": "0-100", "connectedness_score": "0-100", "has_response": false, "existing_response": null, "age_score": null, "age_breakdown": { "alleviate": null, "ground": null, "engage": null }, "collapse_issue": "Issue description", "suggested_response": "AGE response" }],\n';
+  p += '  "patterns": [{ "theme": "Pattern description", "mention_count": 0, "platforms": ["Platform1"], "example_excerpt": "Quote", "severity": "high or medium or low" }],\n';
+  p += '  "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"]\n';
+  p += '}\n\n';
+  p += 'IMPORTANT RULES:\n';
+  p += '- No em dashes anywhere. Use hyphens or commas instead.\n';
+  p += '- Base everything on actual search results, not assumptions.\n';
+  p += '- If search results are thin, say so in the synthesis preview.\n';
+  p += '- Return ONLY the JSON object, nothing else.';
+  return { prompt: p, searchQuery: sq };
+}
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,78 +56,52 @@ export default async function handler(req, res) {
   }
 
   try {
-    const searchQueries = [
-      `${brand} reviews`,
-      `${brand} complaints reddit`,
-      `is ${brand} legit trustpilot yelp`
-    ];
+    var brandName = brand.trim();
+    var config = buildPrompt(brandName);
 
-    let allSearchResults = [];
-
-    for (const query of searchQueries) {
-      try {
-        const searchResponse = await client.messages.create({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          tools: [{
-            type: 'web_search_20250305',
-            name: 'web_search',
-            max_uses: 3
-          }],
-          messages: [{
-            role: 'user',
-            content: `Search the web for: "${query}". Return all results you find. Include URLs, titles, and any review content or mentions you see.`
-          }]
-        });
-
-        for (const block of searchResponse.content) {
-          if (block.type === 'text') {
-            allSearchResults.push({ query, content: block.text });
-          }
-        }
-      } catch (searchErr) {
-        allSearchResults.push({ query, content: `Search failed: ${searchErr.message}` });
-      }
-    }
-
-    if (allSearchResults.length === 0) {
-      return res.status(422).json({
-        success: false,
-        error: 'No search results found. Try a different brand name.'
-      });
-    }
-
-    const analysisPrompt = buildAnalysisPrompt(brand, searchQueries, allSearchResults);
-
-    const analysisResponse = await client.messages.create({
+    var combinedResponse = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
+      tools: [{
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 5
+      }],
       messages: [{
         role: 'user',
-        content: analysisPrompt
+        content: config.prompt
       }]
     });
 
-    let rawText = '';
-    for (const block of analysisResponse.content) {
-      if (block.type === 'text') {
-        rawText += block.text;
+    var rawText = '';
+    for (var i = 0; i < combinedResponse.content.length; i++) {
+      if (combinedResponse.content[i].type === 'text') {
+        rawText += combinedResponse.content[i].text;
       }
     }
+    // Parse JSON with multiple strategies
+    var data = null;
 
-    let data = null;
+    // Strategy 1: Direct parse
     try {
       data = JSON.parse(rawText.trim());
     } catch (e) {
-      const codeBlockMatch = rawText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      // Strategy 2: Extract from markdown code block
+      var codeBlockMatch = rawText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
       if (codeBlockMatch) {
-        try { data = JSON.parse(codeBlockMatch[1].trim()); } catch (e2) {}
+        try {
+          data = JSON.parse(codeBlockMatch[1].trim());
+        } catch (e2) {}
       }
+
+      // Strategy 3: Find first { to last }
       if (!data) {
-        const firstBrace = rawText.indexOf('{');
-        const lastBrace = rawText.lastIndexOf('}');
+        var firstBrace = rawText.indexOf('{');
+        var lastBrace = rawText.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace !== -1) {
-          try { data = JSON.parse(rawText.substring(firstBrace, lastBrace + 1)); } catch (e3) {}
+          try {
+            data = JSON.parse(rawText.substring(firstBrace, lastBrace + 1));
+          } catch (e3) {}
         }
       }
     }
@@ -111,7 +114,7 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: data });
 
   } catch (err) {
     return res.status(500).json({
@@ -119,66 +122,4 @@ export default async function handler(req, res) {
       error: err.message || 'Internal server error'
     });
   }
-}
-
-function buildAnalysisPrompt(brand, searchQueries, allSearchResults) {
-  const resultsText = allSearchResults.map(r => `--- Query: "${r.query}" ---\n${r.content}`).join('\n\n');
-  return `You are a reputation synthesis analyst for Cast Iron LA's Stage30 framework.
-
-You have web search results about the brand "${brand}". Analyze them using the AGE framework:
-- A (Alleviate): Does the brand acknowledge issues in responses?
-- G (Ground): Does the brand provide evidence/specifics?
-- E (Engage): Does the brand offer clear next steps?
-
-SEARCH RESULTS:
-${resultsText}
-
-Return ONLY valid JSON (no markdown, no explanation, no preamble). Use this exact structure:
-
-{
-  "brand": "${brand}",
-  "synthesis_preview": "2-3 sentence summary of what AI will say when someone asks 'Is ${brand} reliable?' Write as if you are the AI answering that question.",
-  "verdict": "trustworthy | mixed | questionable | concerning",
-  "collapse_risk": 0,
-  "age_quality": 0,
-  "critical_mention_count": 0,
-  "pattern_count": 0,
-  "search_queries_used": ${JSON.stringify(searchQueries)},
-  "critical_mentions": [
-    {
-      "source": "Platform name",
-      "url": "URL if found or empty string",
-      "excerpt": "Exact quote or close paraphrase from search results",
-      "risk_score": 0,
-      "connectedness_score": 0,
-      "has_response": false,
-      "existing_response": null,
-      "age_score": null,
-      "age_breakdown": { "alleviate": null, "ground": null, "engage": null },
-      "collapse_issue": "What is wrong with the response or why no response is a problem",
-      "suggested_response": "AGE-structured response the brand should use"
-    }
-  ],
-  "patterns": [
-    {
-      "theme": "Short description of recurring pattern",
-      "mention_count": 0,
-      "platforms": ["Platform1", "Platform2"],
-      "example_excerpt": "Example quote showing this pattern",
-      "severity": "high | medium | low"
-    }
-  ],
-  "recommendations": [
-    "Specific actionable recommendation 1",
-    "Specific actionable recommendation 2",
-    "Specific actionable recommendation 3"
-  ]
-}
-
-IMPORTANT RULES:
-- No em dashes anywhere. Use hyphens or commas instead.
-- Base everything on actual search results, not assumptions
-- If search results are thin, say so in the synthesis preview
-- Replace all placeholder 0 values with real scores based on your analysis
-- Return ONLY the JSON object, nothing else`;
 }
