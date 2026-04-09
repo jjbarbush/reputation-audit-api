@@ -115,22 +115,18 @@ export default async function handler(req, res) {
   try {
     var brandName = brand.trim();
 
-    // Phase 1: Run 3 targeted searches in parallel
+    // Phase 1: Run 3 targeted searches sequentially (avoids rate limits)
     var query1 = brandName + ' reviews ratings customer experience';
     var query2 = brandName + ' complaints problems reddit';
     var query3 = 'is ' + brandName + ' legit trustpilot yelp BBB';
 
-    var searchPromises = [
-      runSearch(query1),
-      runSearch(query2),
-      runSearch(query3)
-    ];
-
-    var results = await Promise.all(searchPromises);
+    var result1 = await runSearch(query1);
+    var result2 = await runSearch(query2);
+    var result3 = await runSearch(query3);
     var allSearchResults = '';
-    allSearchResults += '=== SEARCH 1: Reviews and Ratings ===\n' + results[0] + '\n\n';
-    allSearchResults += '=== SEARCH 2: Complaints and Reddit ===\n' + results[1] + '\n\n';
-    allSearchResults += '=== SEARCH 3: Legitimacy and Trust Platforms ===\n' + results[2] + '\n\n';
+    allSearchResults += '=== SEARCH 1: Reviews and Ratings ===\n' + result1 + '\n\n';
+    allSearchResults += '=== SEARCH 2: Complaints and Reddit ===\n' + result2 + '\n\n';
+    allSearchResults += '=== SEARCH 3: Legitimacy and Trust Platforms ===\n' + result3 + '\n\n';
 
     // Phase 2: Analyze all results with AGE framework
     var analysisPrompt = buildAnalysisPrompt(brandName, allSearchResults);
