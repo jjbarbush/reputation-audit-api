@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synthesis Audit — Stage30 by Cast Iron LA</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --black: #111110;
+  --white: #FAFAF8;
+  --g1: #F5F4F0;
+  --g2: #E8E6E0;
+  --g3: #9E9B93;
+  --g4: #6B6860;
+  --g5: #3D3B37;
+  --coral: #E8593E;
+  --red: #B83226;
+  --red-l: #FAECE7;
+  --green: #2D6A4F;
+  --green-l: #EAF3DE;
+  --amber: #854F0B;
+  --amber-l: #FAEEDA;
+  --blue: #1E3A5F;
+  --teal: #1A6B5A;
+  --teal-l: #E6F5F0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--white); color: var(--black); font-size: 15px; line-height: 1.6; }
+.page { max-width: 800px; margin: 0 auto; padding: 60px 24px 100px; }
+
+/* Header */
+.site-header { margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--g2); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.site-logo { font-size: 18px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--black); }
+.site-logo sup { font-size: 8px; color: var(--g3); vertical-align: super; }
+.site-tagline { font-size: 13px; font-weight: 500; color: var(--g4); letter-spacing: .02em; }
+
+/* Hero */
+.hero { margin-bottom: 40px; }
+.hero-kicker { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--coral); margin-bottom: 16px; }
+.hero h1 { font-family: 'DM Serif Display', serif; font-size: clamp(32px,5vw,52px); font-weight: 400; line-height: 1.08; letter-spacing: -.02em; margin-bottom: 16px; }
+.hero h1 em { font-style: italic; color: var(--g4); }
+.hero p { font-size: 15px; color: var(--g4); max-width: 540px; line-height: 1.7; }
+
+/* Form */
+.form-card { background: var(--g1); border: 1px solid var(--g2); border-radius: 12px; padding: 28px 32px; margin-bottom: 12px; }
+label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--g4); margin-bottom: 6px; }
+input[type=text] { width: 100%; font-family: 'DM Sans', sans-serif; font-size: 15px; color: var(--black); background: var(--white); border: 1px solid var(--g2); border-radius: 7px; padding: 11px 14px; transition: border-color .15s; }
+input[type=text]:focus { outline: none; border-color: var(--black); }
+input::placeholder { color: var(--g3); }
+
+.btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
+.btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; cursor: pointer; border: 1px solid var(--g2); background: var(--white); color: var(--black); transition: all .15s; }
+.btn:hover { background: var(--g1); border-color: var(--g3); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary { background: var(--black); color: var(--white); border-color: var(--black); }
+.btn.primary:hover:not(:disabled) { background: var(--g5); }
+
+/* Mode toggle */
+.mode-toggle { display: flex; gap: 0; margin-top: 16px; max-width: 560px; }
+.mode-btn { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 10px 16px; border: 1px solid var(--g2); background: var(--white); color: var(--g4); cursor: pointer; transition: all .15s; text-align: center; }
+.mode-btn:first-child { border-radius: 6px 0 0 6px; }
+.mode-btn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.mode-btn.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.mode-btn:hover:not(.active) { background: var(--g1); }
+.mode-desc { font-size: 12px; color: var(--g4); margin-top: 8px; line-height: 1.5; max-width: 560px; }
+.mode-badge { display: inline-block; font-size: 9px; font-weight: 700; background: var(--coral); color: var(--white); padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; letter-spacing: .04em; }
+
+/* Progress */
+.progress { display: none; padding: 36px 0; }
+.prog-brand { font-family: 'DM Serif Display', serif; font-size: 28px; margin-bottom: 6px; }
+.prog-sub { font-size: 13px; color: var(--g4); margin-bottom: 24px; }
+.prog-steps { display: flex; flex-direction: column; gap: 7px; }
+.pstep { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--g3); transition: color .3s; }
+.pstep.active { color: var(--black); }
+.pstep.done { color: var(--g4); }
+.picon { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--g2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; transition: all .3s; }
+.pstep.active .picon { border-color: var(--black); background: var(--black); color: var(--white); }
+.pstep.done .picon { border-color: var(--g3); background: var(--g1); color: var(--g4); }
+
+.err { background: var(--red-l); border: 1px solid #F09595; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: var(--red); line-height: 1.6; display: none; margin-top: 14px; white-space: pre-wrap; }
+
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.pulsing { animation: pulse 1.4s ease-in-out infinite; }
+
+/* Results */
+.results { display: none; }
+
+/* Score top */
+.res-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 8px; flex-wrap: wrap; }
+.score-big { font-family: 'DM Serif Display', serif; font-size: 72px; line-height: 1; letter-spacing: -.03em; }
+.score-of { font-size: 16px; color: var(--g3); margin-left: 3px; }
+.score-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--coral); margin-top: 4px; }
+.score-verdict { font-size: 14px; color: var(--g4); margin-top: 6px; max-width: 300px; line-height: 1.55; }
+.res-brand { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--black); }
+.res-date { font-size: 12px; color: var(--g3); margin-top: 4px; }
+
+.bar-track { height: 4px; background: var(--g2); border-radius: 2px; overflow: hidden; margin-bottom: 8px; margin-top: 20px; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.4,0,.2,1); width: 0%; }
+.bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--g3); margin-bottom: 32px; }
+
+/* Metric boxes */
+.m-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-bottom: 28px; }
+.m-box { background: var(--g1); border: 1px solid var(--g2); border-radius: 8px; padding: 16px; text-align: center; }
+.m-num { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1; color: var(--black); }
+.m-lbl { font-size: 10px; font-weight: 600; color: var(--g4); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+.m-explain { font-size: 11px; color: var(--g3); margin-top: 4px; line-height: 1.4; }
+
+.section { margin-bottom: 28px; }
+.sec-head { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--g3); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--g2); }
+
+/* Data sources */
+.data-source-bar { background: var(--g1); border: 1px solid var(--g2); border-radius: 7px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; color: var(--g4); display: flex; gap: 16px; flex-wrap: wrap; }
+.ds-item { display: flex; align-items: center; gap: 5px; }
+.ds-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: #5DCAA5; }
+
+/* Synthesis block */
+.synthesis-block { background: var(--black); border-radius: 10px; padding: 24px 28px; }
+.synth-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: 12px; }
+.synth-text { font-family: 'DM Serif Display', serif; font-size: 18px; line-height: 1.5; color: var(--white); font-style: italic; }
+.verdict-tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 11px; border-radius: 20px; text-transform: uppercase; letter-spacing: .08em; margin-top: 14px; }
+.vt-trusted { background: var(--green-l); color: var(--green); }
+.vt-mixed { background: var(--amber-l); color: var(--amber); }
+.vt-uncertain { background: var(--red-l); color: var(--red); }
+.vt-negative { background: #F7C1C1; color: #791F1F; }
+
+/* Fog words */
+.fog-section { display: none; }
+.fog-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.fog-word { background: var(--amber-l); border: 1px solid #EBC885; border-radius: 6px; padding: 5px 12px; font-size: 13px; color: var(--amber); font-style: italic; }
+.fog-explain { font-size: 12px; color: var(--g4); margin-bottom: 12px; line-height: 1.5; }
+
+/* Mention cards */
+.mention { padding: 16px 0; border-bottom: 1px solid var(--g2); }
+.mention:last-child { border-bottom: none; }
+.mention-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.mention-src { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); }
+.mention-date { font-size: 11px; color: var(--g3); margin-left: 8px; }
+.mention-url { font-size: 11px; color: var(--g3); text-decoration: underline; text-underline-offset: 2px; }
+.mention-url:hover { color: var(--g5); }
+.influence-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.inf-high { background: var(--red-l); color: var(--red); }
+.inf-medium { background: var(--amber-l); color: var(--amber); }
+.inf-low { background: var(--green-l); color: var(--green); }
+.mention-scene { font-size: 12px; color: var(--g4); margin: 4px 0; }
+.mention-excerpt { font-size: 14px; color: var(--g5); line-height: 1.65; padding-left: 14px; border-left: 2px solid var(--g2); margin: 10px 0; }
+.mention-tension { font-size: 13px; color: var(--g5); margin-bottom: 6px; line-height: 1.5; }
+.mention-tension strong { color: var(--black); font-weight: 600; }
+.mention-impact { font-size: 12px; color: var(--g4); line-height: 1.5; margin-bottom: 8px; }
+.mention-impact strong { color: var(--g5); font-weight: 600; }
+
+/* STAGE score bars */
+.stage-bar { display: flex; gap: 4px; margin: 8px 0 4px; }
+.stage-seg { flex: 1; height: 4px; border-radius: 2px; background: var(--g2); }
+.stage-labels { display: flex; gap: 4px; margin-bottom: 6px; }
+.stage-labels span { flex: 1; font-size: 10px; color: var(--g4); text-align: center; }
+
+/* Suggested response */
+.sugg-resp { background: var(--g1); border: 1px solid var(--g2); border-radius: 8px; padding: 14px 18px; margin-top: 10px; }
+.sr-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+.sr-text { font-size: 13px; color: var(--g5); line-height: 1.6; }
+
+/* No response warning */
+.no-resp { font-size: 12px; color: var(--red); font-weight: 500; margin: 6px 0; padding: 6px 10px; background: var(--red-l); border-radius: 5px; display: inline-block; }
+
+/* Patterns */
+.pattern { padding: 10px 14px; border-left: 3px solid var(--g2); margin-bottom: 8px; border-radius: 0 6px 6px 0; }
+.pattern.sev-high { border-left-color: var(--red); background: var(--red-l); }
+.pattern.sev-medium { border-left-color: var(--amber); background: var(--amber-l); }
+.pattern.sev-low { border-left-color: var(--teal); background: var(--teal-l); }
+.pat-theme { font-size: 14px; font-weight: 600; color: var(--black); margin-bottom: 2px; }
+.pat-dir { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-left: 8px; }
+.pat-dir.dir-positive { color: var(--green); }
+.pat-dir.dir-negative { color: var(--red); }
+.pat-dir.dir-neutral { color: var(--g4); }
+.pat-meta { font-size: 12px; color: var(--g4); margin-bottom: 4px; }
+.pat-excerpt { font-size: 13px; color: var(--g5); font-style: italic; line-height: 1.5; }
+
+/* Recommendations */
+.rec-block { background: var(--black); border-radius: 10px; padding: 24px 28px; }
+.rec-item { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+.rec-item:last-child { border-bottom: none; }
+.rec-idx { font-family: 'DM Serif Display', serif; font-size: 20px; color: rgba(255,255,255,.3); flex-shrink: 0; line-height: 1; margin-top: 2px; }
+.rec-content { flex: 1; }
+.rec-txt { color: rgba(255,255,255,.85); font-size: 14px; line-height: 1.6; }
+.rec-meta { display: flex; gap: 8px; margin-top: 6px; }
+.rec-priority { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.rp-high { background: rgba(232,89,62,.2); color: #F08070; }
+.rp-medium { background: rgba(239,159,39,.15); color: #EFB84C; }
+.rp-low { background: rgba(93,202,165,.15); color: #5DCAA5; }
+.rec-stage { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .06em; }
+.rec-entropy { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 6px; line-height: 1.5; font-style: italic; padding-left: 12px; border-left: 2px solid rgba(255,255,255,.1); }
+
+.divider { height: 1px; background: var(--g2); margin: 36px 0; }
+
+.foot { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--g2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.foot-logo { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--g4); }
+.foot-logo sup { font-size: 7px; color: var(--g3); vertical-align: super; }
+
+@media (max-width: 640px) {
+  .m-row { grid-template-columns: 1fr; }
+  .res-top { flex-direction: column; }
+}
+
+/* Print / PDF */
+@media print {
+  @page { size: A4; margin: 0; }
+  body { font-size: 12px; background: white; color: #111110; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { max-width: 100%; padding: 0; }
+  .hero, .form-card, .btn-row, .err, .progress, .foot,
+  #input-section, #progress-section { display: none !important; }
+  .results { display: block !important; }
+
+  #pdf-cover {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #111110 !important;
+    color: white !important;
+    padding: 60px 64px 52px;
+    min-height: 280px;
+    page-break-after: always;
+  }
+  .cv-r1 { display: flex; justify-content: space-between; align-items: flex-start; }
+  .cv-logo { font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.7) !important; }
+  .cv-date { font-size: 11px; color: rgba(255,255,255,.5) !important; letter-spacing: .06em; text-transform: uppercase; }
+  .cv-h1 { font-family: 'DM Serif Display', serif; font-size: 44px; font-weight: 400; line-height: 1.05; letter-spacing: -.02em; margin-top: 30px; color: white !important; }
+  .cv-h1 em { font-style: italic; color: rgba(255,255,255,.6) !important; }
+  .cv-brand { font-size: 16px; color: rgba(255,255,255,.7) !important; margin-top: 10px; }
+  .cv-bottom { margin-top: 40px; padding-top: 26px; border-top: 1px solid rgba(255,255,255,.2); display: flex; gap: 48px; align-items: flex-end; }
+  .cv-score { font-family: 'DM Serif Display', serif; font-size: 58px; line-height: 1; color: white !important; }
+  .cv-score-lbl { font-size: 9px; color: rgba(255,255,255,.55) !important; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; }
+  .cv-verdict { font-size: 11px; color: rgba(255,255,255,.65) !important; max-width: 280px; line-height: 1.5; }
+
+  #pdf-body { padding: 44px 64px 56px; }
+  .res-top { margin-bottom: 16px; }
+  .score-big { font-size: 52px; color: #111110 !important; }
+  .score-label { color: #E8593E !important; }
+  .score-verdict { color: #3D3B37 !important; }
+  .bar-track, .bar-labels { display: none; }
+  .m-row { gap: 8px; margin-bottom: 16px; }
+  .m-box { padding: 10px; background: #F5F4F0 !important; border: 1px solid #E8E6E0 !important; }
+  .m-num { font-size: 22px; color: #111110 !important; }
+  .m-lbl { font-size: 9px; color: #6B6860 !important; }
+  .m-explain { font-size: 8px; color: #6B6860 !important; }
+  .section { margin-bottom: 16px; }
+  .sec-head { font-size: 9px; padding-bottom: 6px; margin-bottom: 8px; color: #6B6860 !important; }
+  .synthesis-block { padding: 16px 20px; background: #111110 !important; }
+  .synth-label { color: rgba(255,255,255,.6) !important; }
+  .synth-text { font-size: 15px; color: rgba(255,255,255,.9) !important; }
+  .verdict-tag { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .mention { padding: 8px 0; }
+  .mention-src { color: #1E3A5F !important; }
+  .mention-excerpt { font-size: 11px; color: #3D3B37 !important; }
+  .mention-tension strong { color: #111110 !important; }
+  .mention-impact strong { color: #3D3B37 !important; }
+  .mention-url { color: #1E3A5F !important; text-decoration: underline !important; }
+  .influence-tag { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .pattern { font-size: 11px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .pat-theme { color: #111110 !important; }
+  .pat-meta { color: #6B6860 !important; }
+  .fog-word { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .rec-block { padding: 16px 20px; background: #111110 !important; }
+  .rec-txt { color: rgba(255,255,255,.9) !important; }
+  .rec-idx { color: rgba(255,255,255,.4) !important; }
+  .rec-entropy { color: rgba(255,255,255,.65) !important; }
+  .rec-priority, .rec-stage { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .res-top .btn { display: none !important; }
+  .no-resp { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+  #pdf-footer {
+    display: flex !important;
+    background: #F5F4F0 !important;
+    padding: 11px 64px;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #E8E6E0;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+  }
+  .pf-logo { font-size: 10px; font-weight: 700; color: #6B6860 !important; letter-spacing: .08em; text-transform: uppercase; }
+  .pf-right { font-size: 9px; color: #9E9B93 !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="site-header">
+    <div class="site-logo">Stage30<sup>TM</sup></div>
+    <div class="site-tagline">Cast Iron LA</div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-kicker">Synthesis Audit</div>
+    <h1>See what people are saying.<br><em>See what AI is learning.</em></h1>
+    <p>Google, ChatGPT, and Perplexity are building answers about your brand from public reviews, forums, and ratings. We run the same searches they do, show you exactly what they find, and score how your brand holds up using the STAGE framework.</p>
+  </div>
+
+  <div id="input-section">
+    <div class="form-card">
+      <div class="field">
+        <label>Brand name</label>
+        <input type="text" id="brandInput" placeholder="e.g. Dr Norms, Sweetgreen, Patagonia" />
+      </div>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeStd" onclick="setMode('standard')">Standard</button>
+      <button class="mode-btn" id="modeMax" onclick="setMode('max')">Max<span class="mode-badge">DEEP</span></button>
+    </div>
+    <div class="mode-desc" id="modeDesc">Two targeted searches across review and trust platforms. Fast, focused. About 60 seconds.</div>
+    <div class="btn-row">
+      <button class="btn primary" id="runBtn" onclick="runAudit()">Run synthesis audit</button>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress" id="prog">
+    <div class="prog-brand" id="prog-name">Analyzing...</div>
+    <div class="prog-sub">Searching what AI knows about this brand.</div>
+    <div class="prog-steps">
+      <div class="pstep" id="s0"><div class="picon">1</div><span>Searching public reviews and mentions</span></div>
+      <div class="pstep" id="s1"><div class="picon">2</div><span>Pulling trust platform data</span></div>
+      <div class="pstep" id="s2"><div class="picon">3</div><span>Analyzing through STAGE framework</span></div>
+      <div class="pstep" id="s3"><div class="picon">4</div><span>Scoring trust and synthesis clarity</span></div>
+      <div class="pstep" id="s4"><div class="picon">5</div><span>Building audit report</span></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results" id="res">
+
+    <!-- PDF COVER (print only) -->
+    <div id="pdf-cover" style="display:none">
+      <div class="cv-r1">
+        <span class="cv-logo">Stage30 / Cast Iron LA</span>
+        <span class="cv-date" id="pdf-date"></span>
+      </div>
+      <div>
+        <div class="cv-h1">Synthesis<br><em>audit.</em></div>
+        <div class="cv-brand" id="pdf-cv-brand"></div>
+      </div>
+      <div class="cv-bottom">
+        <div>
+          <div class="cv-score-lbl">Trust Score</div>
+          <div class="cv-score" id="pdf-cv-score">--</div>
+        </div>
+        <div class="cv-verdict" id="pdf-cv-verdict"></div>
+      </div>
+    </div>
+
+    <div id="pdf-body">
+      <div class="res-top">
+        <div>
+          <div class="score-big" id="r-score">--<span class="score-of">/100</span></div>
+          <div class="score-label">Trust Score</div>
+          <div class="score-verdict" id="r-verdict"></div>
+        </div>
+        <div style="text-align:right">
+          <div class="res-brand" id="r-brand"></div>
+          <div class="res-date" id="r-date"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px">
+            <button class="btn" style="font-size:12px" onclick="exportPDF()">Export PDF</button>
+            <button class="btn" style="font-size:12px" onclick="reset()">New audit</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bar-track"><div class="bar-fill" id="r-bar"></div></div>
+      <div class="bar-labels"><span>0 / AI does not trust</span><span>100 / AI fully trusts</span></div>
+
+      <div class="m-row">
+        <div class="m-box">
+          <div class="m-num" id="r-trust">--</div>
+          <div class="m-lbl">Trust Score</div>
+          <div class="m-explain">How much AI trusts this brand based on public data volume and sentiment</div>
+        </div>
+        <div class="m-box">
+          <div class="m-num" id="r-clarity">--</div>
+          <div class="m-lbl">Synthesis Clarity</div>
+          <div class="m-explain">How clear and consistent a narrative AI can build about this brand</div>
+        </div>
+        <div class="m-box">
+          <div class="m-num" id="r-sources">--</div>
+          <div class="m-lbl">Sources Found</div>
+          <div class="m-explain">Distinct platforms and sources with data about this brand</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-head">Data sources searched</div>
+        <div class="data-source-bar" id="data-sources"></div>
+      </div>
+
+      <!-- Synthesis Preview -->
+      <div class="section">
+        <div class="sec-head">What AI will say about this brand</div>
+        <div class="synthesis-block">
+          <div class="synth-label">AI synthesis preview</div>
+          <div class="synth-text" id="r-synthesis"></div>
+          <div id="r-verdict-tag"></div>
+        </div>
+      </div>
+
+      <!-- Fog Words -->
+      <div class="section fog-section" id="fog-sec">
+        <div class="sec-head">Adverbial fog</div>
+        <div class="fog-explain">Words found in this brand's public presence that create uncertainty in AI synthesis. These are vague or generic terms that weaken trust signals because they lack specificity.</div>
+        <div class="fog-grid" id="r-fog"></div>
+      </div>
+
+      <!-- Critical Mentions -->
+      <div class="section" id="mentions-sec" style="display:none">
+        <div class="sec-head">Critical mentions shaping AI trust</div>
+        <div id="r-mentions-list"></div>
+      </div>
+
+      <!-- Patterns -->
+      <div class="section" id="patterns-sec" style="display:none">
+        <div class="sec-head">Recurring patterns across sources</div>
+        <div id="r-patterns-list"></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="section">
+        <div class="sec-head">STAGE recommendations</div>
+        <div class="rec-block" id="r-recs"></div>
+      </div>
+
+      <!-- Methodology -->
+      <div class="section">
+        <div class="sec-head">Methodology</div>
+        <div style="font-size:13px;color:var(--g4);line-height:1.7">
+          <p style="margin-bottom:10px">This audit searches the same public sources that AI search engines (Google AI Overviews, ChatGPT, Perplexity) use to build answers about brands. We do not scrape websites directly. Instead, we run live web searches through the Anthropic API using Claude's built-in web search capability, which accesses publicly indexed content across review sites, forums, social platforms, and rating services.</p>
+          <p style="margin-bottom:10px"><strong style="color:var(--g5)">Search queries:</strong> Two targeted searches per brand. The first covers reviews, ratings, complaints, and customer experience. The second covers trust platforms like Reddit, Trustpilot, Yelp, and BBB. Each search can access up to 3 web sources, for a maximum of 6 distinct source pages per audit.</p>
+          <p style="margin-bottom:10px"><strong style="color:var(--g5)">Analysis:</strong> All search results are analyzed through the STAGE framework (Scene, Tension, Alleviate, Ground, Engage). Each critical mention is scored on how the brand responded (or failed to respond) across the A, G, and E dimensions.</p>
+          <p><strong style="color:var(--g5)">Scoring:</strong> Trust scores are calibrated against data volume. Brands with fewer than 5 distinct sources are capped at 55. Brands with 5-10 sources are capped at 70. Only brands with 10+ sources and consistently positive sentiment can score above 70. This prevents thin data from inflating scores.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="pdf-footer" style="display:none">
+      <span class="pf-logo">Stage30 Synthesis Audit</span>
+      <span class="pf-right">Confidential / stage30.com / castiron.la</span>
+    </div>
+
+    <div class="foot">
+      <div class="foot-logo">Stage30<sup>TM</sup> / Cast Iron LA</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="exportPDF()">Export full PDF</button>
+        <button class="btn" onclick="reset()">New audit</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var API_BASE_URL = 'https://reputation-audit-api.vercel.app';
+var auditMode = 'standard';
+
+function setMode(mode) {
+  auditMode = mode;
+  document.getElementById('modeStd').className = mode === 'standard' ? 'mode-btn active' : 'mode-btn';
+  document.getElementById('modeMax').className = mode === 'max' ? 'mode-btn active' : 'mode-btn';
+  if (mode === 'max') {
+    document.getElementById('modeDesc').textContent = 'Claude searches freely with up to 15 searches. Follows threads, checks the brand own site, goes deeper on what it finds. About 2-3 minutes.';
+  } else {
+    document.getElementById('modeDesc').textContent = 'Two targeted searches across review and trust platforms. Fast, focused. About 60 seconds.';
+  }
+}
+
+function barColor(s) { return s >= 60 ? '#2D6A4F' : s >= 40 ? '#854F0B' : '#B83226'; }
+
+function setStep(n) {
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById('s' + i);
+    var ic = el.querySelector('.picon');
+    if (i < n) { el.className = 'pstep done'; ic.textContent = '\u2713'; }
+    else if (i === n) { el.className = 'pstep active pulsing'; ic.textContent = (i + 1); }
+    else { el.className = 'pstep'; ic.textContent = (i + 1); }
+  }
+}
+
+function runAudit() {
+  var brand = document.getElementById('brandInput').value.trim();
+  if (!brand) { document.getElementById('err').textContent = 'Enter a brand name.'; document.getElementById('err').style.display = 'block'; return; }
+
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('input-section').style.display = 'none';
+  document.getElementById('prog').style.display = 'block';
+  document.getElementById('prog-name').textContent = brand;
+  document.getElementById('runBtn').disabled = true;
+  setStep(0);
+
+  var stepTimer = setInterval(function() {
+    var current = document.querySelector('.pstep.active');
+    if (current) {
+      var id = parseInt(current.id.replace('s', ''));
+      if (id < 4) setStep(id + 1);
+    }
+  }, 12000);
+
+  fetch(API_BASE_URL + '/api/audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ brand: brand, mode: auditMode })
+  })
+  .then(function(response) { return response.json(); })
+  .then(function(result) {
+    if (!result.success) throw new Error(result.error || 'Audit failed');
+    clearInterval(stepTimer);
+    setStep(4);
+    setTimeout(function() { renderReport(result.data, brand); }, 400);
+  })
+  .catch(function(err) {
+    clearInterval(stepTimer);
+    document.getElementById('prog').style.display = 'none';
+    document.getElementById('input-section').style.display = 'block';
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('err').textContent = err.message;
+    document.getElementById('err').style.display = 'block';
+  });
+}
+
+function renderReport(data, brand) {
+  document.getElementById('prog').style.display = 'none';
+  document.getElementById('res').style.display = 'block';
+
+  var trust = data.trust_score || 0;
+  var clarity = data.synthesis_clarity || 0;
+  var sourceCount = data.source_count || 0;
+  var mentions = data.critical_mentions || [];
+  var patterns = data.patterns || [];
+  var recs = data.recommendations || [];
+  var fogWords = data.fog_words || [];
+
+  // Fallback for old API format
+  if (!data.trust_score && data.collapse_risk !== undefined) {
+    trust = Math.max(0, 100 - (data.collapse_risk || 0));
+  }
+  if (!data.synthesis_clarity && data.age_quality !== undefined) {
+    clarity = data.age_quality || 0;
+  }
+
+  var verdictMap = {
+    trusted: 'AI trusts this brand. Public data reinforces a clear, positive signal across sources.',
+    mixed: 'AI partially trusts this brand. Some positive signal, but gaps and mixed data create ambiguity.',
+    uncertain: 'AI struggles to trust this brand. Conflicting or thin public data undermines certainty.',
+    negative: 'AI does not trust this brand. Public data consistently signals problems across sources.',
+    trustworthy: 'AI trusts this brand. Public data reinforces a clear, positive signal across sources.',
+    questionable: 'AI struggles to trust this brand. Conflicting or thin public data undermines certainty.',
+    concerning: 'AI does not trust this brand. Public data consistently signals problems across sources.'
+  };
+  var verdict = (data.verdict || 'mixed').toLowerCase();
+
+  // Score
+  document.getElementById('r-score').innerHTML = trust + '<span class="score-of">/100</span>';
+  document.getElementById('r-verdict').textContent = verdictMap[verdict] || verdictMap.mixed;
+  document.getElementById('r-brand').textContent = data.brand || brand;
+
+  // Timestamp
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  var timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  var modeLabel = (data.mode === 'max') ? 'Max mode' : 'Standard mode';
+  document.getElementById('r-date').textContent = dateStr + ' at ' + timeStr + ' / ' + modeLabel;
+
+  // Bar
+  var bar = document.getElementById('r-bar');
+  bar.style.background = barColor(trust);
+  setTimeout(function() { bar.style.width = trust + '%'; }, 100);
+
+  // Metrics
+  document.getElementById('r-trust').textContent = trust;
+  document.getElementById('r-clarity').textContent = clarity;
+  document.getElementById('r-sources').textContent = sourceCount;
+
+  // Data sources
+  var queries = data.search_queries_used || [];
+  document.getElementById('data-sources').innerHTML = queries.map(function(q) {
+    return '<div class="ds-item"><div class="ds-dot"></div><span>' + q + '</span></div>';
+  }).join('');
+
+  // Synthesis preview
+  document.getElementById('r-synthesis').textContent = data.synthesis_preview || 'No synthesis available.';
+  var vtClass = 'vt-' + verdict;
+  // Map old verdict names to new CSS classes
+  if (verdict === 'trustworthy') vtClass = 'vt-trusted';
+  if (verdict === 'questionable') vtClass = 'vt-uncertain';
+  if (verdict === 'concerning') vtClass = 'vt-negative';
+  document.getElementById('r-verdict-tag').innerHTML = '<span class="verdict-tag ' + vtClass + '">' + verdict + '</span>';
+
+  // Fog words
+  if (fogWords.length > 0) {
+    document.getElementById('fog-sec').style.display = 'block';
+    document.getElementById('r-fog').innerHTML = fogWords.map(function(w) {
+      return '<span class="fog-word">' + w + '</span>';
+    }).join('');
+  }
+
+  // Critical mentions
+  if (mentions.length > 0) {
+    document.getElementById('mentions-sec').style.display = 'block';
+    var ml = document.getElementById('r-mentions-list');
+    ml.innerHTML = mentions.map(function(m) {
+      var influence = (m.influence || 'medium').toLowerCase();
+      var infClass = influence === 'high' ? 'inf-high' : influence === 'low' ? 'inf-low' : 'inf-medium';
+
+      var stageHTML = '';
+      var stageScores = m.stage_scores || m.age_breakdown || null;
+      if (m.has_response && stageScores) {
+        var a = stageScores.alleviate || 0;
+        var g = stageScores.ground || 0;
+        var e = stageScores.engage || 0;
+        stageHTML = '<div class="stage-bar">' +
+          '<div class="stage-seg" style="background:' + barColor(a) + ';opacity:' + (0.3 + (a/100)*0.7) + '"></div>' +
+          '<div class="stage-seg" style="background:' + barColor(g) + ';opacity:' + (0.3 + (g/100)*0.7) + '"></div>' +
+          '<div class="stage-seg" style="background:' + barColor(e) + ';opacity:' + (0.3 + (e/100)*0.7) + '"></div>' +
+          '</div><div class="stage-labels"><span>Alleviate: ' + a + '</span><span>Ground: ' + g + '</span><span>Engage: ' + e + '</span></div>';
+      }
+
+      var noRespHTML = '';
+      if (!m.has_response) {
+        noRespHTML = '<div class="no-resp">No brand response found</div>';
+      }
+
+      var suggHTML = '';
+      if (m.suggested_response) {
+        suggHTML = '<div class="sugg-resp"><div class="sr-label">Suggested STAGE Response</div><div class="sr-text">' + m.suggested_response + '</div></div>';
+      }
+
+      var urlHTML = '';
+      if (m.url) {
+        urlHTML = '<a class="mention-url" href="' + m.url + '" target="_blank">' + m.url.substring(0, 60) + '</a>';
+      }
+
+      var dateHTML = m.date ? '<span class="mention-date">' + m.date + '</span>' : '';
+
+      return '<div class="mention">' +
+        '<div class="mention-top">' +
+          '<div><span class="mention-src">' + (m.source || 'Unknown') + '</span>' + dateHTML + '</div>' +
+          '<span class="influence-tag ' + infClass + '">' + influence + ' influence</span>' +
+        '</div>' +
+        (urlHTML ? '<div style="margin-bottom:6px">' + urlHTML + '</div>' : '') +
+        (m.scene ? '<div class="mention-scene">Scene: ' + m.scene + '</div>' : '') +
+        (m.excerpt ? '<div class="mention-excerpt">' + m.excerpt + '</div>' : '') +
+        (m.tension ? '<div class="mention-tension"><strong>Tension:</strong> ' + m.tension + '</div>' : '') +
+        (m.trust_impact || m.collapse_issue ? '<div class="mention-impact"><strong>Trust impact:</strong> ' + (m.trust_impact || m.collapse_issue) + '</div>' : '') +
+        noRespHTML + stageHTML + suggHTML +
+      '</div>';
+    }).join('');
+  }
+
+  // Patterns
+  if (patterns.length > 0) {
+    document.getElementById('patterns-sec').style.display = 'block';
+    document.getElementById('r-patterns-list').innerHTML = patterns.map(function(p) {
+      var sev = (p.severity || 'medium').toLowerCase();
+      var dir = (p.direction || 'neutral').toLowerCase();
+      return '<div class="pattern sev-' + sev + '">' +
+        '<div class="pat-theme">' + (p.theme || 'Unknown') + '<span class="pat-dir dir-' + dir + '">' + dir + '</span></div>' +
+        '<div class="pat-meta">' + (p.mention_count || '?') + ' mentions across ' + (p.platforms || []).join(', ') + '</div>' +
+        (p.example_excerpt ? '<div class="pat-excerpt">"' + p.example_excerpt + '"</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  // Recommendations
+  if (recs.length > 0) {
+    document.getElementById('r-recs').innerHTML = recs.map(function(r, i) {
+      // Support both old format (string) and new format (object)
+      var actionText = typeof r === 'string' ? r : (r.action || '');
+      var priority = typeof r === 'object' ? (r.priority || 'medium') : 'medium';
+      var stageEl = typeof r === 'object' ? (r.stage_element || '') : '';
+      var entropyNote = typeof r === 'object' ? (r.entropy_note || '') : '';
+      var prClass = priority === 'high' ? 'rp-high' : priority === 'low' ? 'rp-low' : 'rp-medium';
+
+      return '<div class="rec-item">' +
+        '<span class="rec-idx">' + (i + 1) + '</span>' +
+        '<div class="rec-content">' +
+          '<div class="rec-txt">' + actionText + '</div>' +
+          (entropyNote ? '<div class="rec-entropy">Entropy: ' + entropyNote + '</div>' : '') +
+          '<div class="rec-meta">' +
+            '<span class="rec-priority ' + prClass + '">' + priority + '</span>' +
+            (stageEl ? '<span class="rec-stage">' + stageEl + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // PDF cover
+  document.getElementById('pdf-date').textContent = dateStr;
+  document.getElementById('pdf-cv-brand').textContent = data.brand || brand;
+  document.getElementById('pdf-cv-score').textContent = trust + '/100';
+  document.getElementById('pdf-cv-verdict').textContent = verdictMap[verdict] || '';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function exportPDF() { window.print(); }
+
+function reset() {
+  document.getElementById('res').style.display = 'none';
+  document.getElementById('input-section').style.display = 'block';
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('mentions-sec').style.display = 'none';
+  document.getElementById('patterns-sec').style.display = 'none';
+  document.getElementById('fog-sec').style.display = 'none';
+}
+
+document.getElementById('brandInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') runAudit();
+});
+</script>
+</body>
+</html>
