@@ -5,6 +5,9 @@
       "maxDuration": 180
     }
   },
+  "routes": [
+    { "src": "^/$", "dest": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
