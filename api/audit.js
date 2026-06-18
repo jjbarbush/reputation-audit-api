@@ -1,6 +1,55 @@
+// WP5: reputation-audit-api hardening per ENGINE-HARDENING-SPEC.md
+// Changes: rate limiting, temperature 0, code-enforced scoring caps,
+//          server timestamp, input hygiene, retry on 429/529/timeout,
+//          _engine and _enforced fields.
+
 import Anthropic from '@anthropic-ai/sdk';
 
+export const maxDuration = 300;
+
+// ---- Rate limiting (WP5.1: ported from stage30-engine) ----
+const ipCounts = new Map();
+let globalCount = 0;
+let globalResetAt = 0;
+const IP_LIMIT = 10;
+const GLOBAL_LIMIT = 100;
+const WINDOW_MS = 60 * 60 * 1000;
+
+function checkRate(ip) {
+  const now = Date.now();
+  if (now > globalResetAt) { globalCount = 0; globalResetAt = now + WINDOW_MS; }
+  if (globalCount >= GLOBAL_LIMIT) return 'We are running a lot of reports right now. Try again in a bit.';
+  let entry = ipCounts.get(ip);
+  if (!entry || now > entry.resetAt) { entry = { count: 0, resetAt: now + WINDOW_MS }; ipCounts.set(ip, entry); }
+  if (entry.count >= IP_LIMIT) return 'You have already run ' + IP_LIMIT + ' reports this hour. Come back soon.';
+  entry.count++; globalCount++;
+  return null;
+}
+
+// ---- WP5.5: Input hygiene ----
+function sanitizeBrand(raw) {
+  if (!raw) return '';
+  return String(raw).trim().slice(0, 80).replace(/[<>{}`]/g, '');
+}
+
 var client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ---- WP5.6: Retry wrapper for client.messages.create ----
+async function createWithRetry(params, maxRetries = 1) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await client.messages.create(params);
+    } catch (err) {
+      const status = err.status || 0;
+      const isRetryable = status === 429 || status === 529 || /timeout|abort/i.test(String(err.message));
+      if (attempt < maxRetries && isRetryable) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 function buildStageRules() {
   var r = 'STAGE Framework:\n';
@@ -16,7 +65,6 @@ function buildJsonSchema(brandName) {
   var s = 'Return ONLY valid JSON with this exact structure (no markdown, no explanation, no preamble):\n\n';
   s += '{\n';
   s += '  "brand": "' + brandName + '",\n';
-  s += '  "timestamp": "ISO 8601 timestamp",\n';
   s += '  "synthesis_preview": "2-3 sentence summary of what an AI search engine would say when asked: Is ' + brandName + ' good? Write as the AI answering directly.",\n';
   s += '  "verdict": "trusted | mixed | uncertain | negative",\n';
   s += '  "trust_score": 0,\n';
@@ -105,7 +153,6 @@ function buildOtherRules() {
   r += '- Base everything on actual search results, not assumptions.\n';
   r += '- If data is thin, say so in synthesis_preview.\n';
   r += '- search_queries_used must list every query you actually searched for.\n';
-  r += '- timestamp should be current ISO 8601 date/time.\n';
   r += '- Return ONLY the JSON object, nothing else.';
   return r;
 }
@@ -130,7 +177,9 @@ function buildAnalysisPrompt(brandName, searchResults) {
 }
 
 async function runSearch(query) {
-  var response = await client.messages.create({
+  // WP5.2: temperature 0 (web_search tool does not accept temperature, but analysis pass does)
+  // WP5.6: retry wrapper
+  var response = await createWithRetry({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2048,
     tools: [{
@@ -166,9 +215,11 @@ async function runStandard(brandName) {
 
   var analysisPrompt = buildAnalysisPrompt(brandName, allSearchResults);
 
-  var analysisResponse = await client.messages.create({
+  // WP5.2: temperature 0; WP5.6: retry wrapper
+  var analysisResponse = await createWithRetry({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4096,
+    temperature: 0,
     messages: [{
       role: 'user',
       content: analysisPrompt
@@ -213,7 +264,8 @@ function buildMaxPrompt(brandName) {
 }
 
 async function runMax(brandName) {
-  var response = await client.messages.create({
+  // WP5.6: retry wrapper
+  var response = await createWithRetry({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 16000,
     tools: [{
@@ -265,6 +317,43 @@ function parseJson(rawText) {
   return data;
 }
 
+// WP5.3: code-enforced scoring caps and verdict recomputation
+function enforceScoring(data) {
+  if (!data) return data;
+  const sourceCount = typeof data.source_count === 'number' ? data.source_count : 0;
+
+  // Cap trust_score based on source_count
+  let trustScore = typeof data.trust_score === 'number' ? data.trust_score : 0;
+  if (sourceCount < 5) trustScore = Math.min(trustScore, 55);
+  else if (sourceCount < 10) trustScore = Math.min(trustScore, 70);
+  data.trust_score = trustScore;
+
+  // Force "mixed" or worse if ≥2 high-influence negative critical_mentions exist
+  const highNegCount = Array.isArray(data.critical_mentions)
+    ? data.critical_mentions.filter(m => m && m.sentiment === 'negative' && m.influence === 'high').length
+    : 0;
+
+  // Recompute verdict from trust_score bands
+  let verdict;
+  if (trustScore >= 70) verdict = 'trusted';
+  else if (trustScore >= 45) verdict = 'mixed';
+  else if (trustScore >= 25) verdict = 'uncertain';
+  else verdict = 'negative';
+
+  // Override: if ≥2 high-influence negative entries, cap at "mixed"
+  if (highNegCount >= 2 && verdict === 'trusted') verdict = 'mixed';
+
+  data.verdict = verdict;
+
+  // Recompute data_volume from source_count
+  if (sourceCount >= 10) data.data_volume = 'strong';
+  else if (sourceCount >= 5) data.data_volume = 'moderate';
+  else if (sourceCount >= 2) data.data_volume = 'thin';
+  else data.data_volume = 'minimal';
+
+  return data;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -278,11 +367,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'POST only' });
   }
 
+  // WP5.1: Rate limiting
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const rateLimitMsg = checkRate(ip);
+  if (rateLimitMsg) return res.status(429).json({ success: false, error: rateLimitMsg });
+
   var body = req.body || {};
   var brand = body.brand;
   var mode = body.mode || 'standard';
 
-  if (!brand || !brand.trim()) {
+  if (!brand || !String(brand).trim()) {
     return res.status(400).json({ success: false, error: 'Brand name is required' });
   }
 
@@ -291,7 +385,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    var brandName = brand.trim();
+    // WP5.5: sanitize brand name before embedding in prompts
+    var brandName = sanitizeBrand(brand);
+    if (!brandName) return res.status(400).json({ success: false, error: 'Brand name is required' });
+
     var result;
 
     if (mode === 'max') {
@@ -316,6 +413,16 @@ export default async function handler(req, res) {
     }
 
     data.mode = mode;
+
+    // WP5.3: enforce scoring caps in code
+    data = enforceScoring(data);
+
+    // WP5.4: server timestamp always overrides model's timestamp
+    data.timestamp = new Date().toISOString();
+
+    // WP5.7: engine metadata
+    data._engine = 'stage30-synthesis-v2';
+    data._enforced = true;
 
     return res.json({ success: true, data: data });
 
