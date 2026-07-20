@@ -180,7 +180,7 @@ async function runSearch(query) {
   // WP5.2: temperature 0 (web_search tool does not accept temperature, but analysis pass does)
   // WP5.6: retry wrapper
   var response = await createWithRetry({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-5',
     max_tokens: 2048,
     tools: [{
       type: 'web_search_20250305',
@@ -217,7 +217,7 @@ async function runStandard(brandName) {
 
   // WP5.2: temperature 0; WP5.6: retry wrapper
   var analysisResponse = await createWithRetry({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-5',
     max_tokens: 4096,
     temperature: 0,
     messages: [{
@@ -266,7 +266,7 @@ function buildMaxPrompt(brandName) {
 async function runMax(brandName) {
   // WP5.6: retry wrapper
   var response = await createWithRetry({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-5',
     max_tokens: 16000,
     tools: [{
       type: 'web_search_20250305',
